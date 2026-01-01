@@ -20,7 +20,6 @@ html, body {
   font-family: 'Courier New', monospace;
   touch-action: manipulation;
 }
-
 canvas { display: block; }
 
 .center-text {
@@ -64,15 +63,31 @@ let grid = [];
 let columnsData = [];
 let lastBeat = 0;
 let pulsePhase = 0;
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
 
+/* ===================== AUDIO (iOS SAFE) ===================== */
+let audioCtx = null;
+
+function initAudio() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+}
+
+async function ensureAudio() {
+  initAudio();
+  if (audioCtx.state === 'suspended') {
+    try { await audioCtx.resume(); } catch(e){}
+  }
+}
+
+/* ===================== VISUAL STATE ===================== */
 let heartParticles = [];
 let heartScale, heartCenterX, heartCenterY;
 
 /* ===================== RESIZE ===================== */
 function resize() {
-  canvas.width = window.innerWidth;
-  canvas.height = window.innerHeight;
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
 
   fontSize = Math.max(12, Math.min(36, canvas.width / 30));
   columns = Math.floor(canvas.width / fontSize);
@@ -148,7 +163,7 @@ function drawHeart() {
              * p.r * heartScale * pulse;
 
     ctx.globalAlpha = p.alpha;
-    ctx.fillStyle = `rgb(200,120,255)`;
+    ctx.fillStyle = 'rgb(200,120,255)';
     ctx.beginPath();
     ctx.arc(heartCenterX+x, heartCenterY+y, p.size, 0, Math.PI*2);
     ctx.fill();
@@ -157,9 +172,8 @@ function drawHeart() {
   ctx.restore();
 }
 
-/* ===================== NEW ECG STYLE ===================== */
+/* ===================== ECG ===================== */
 let ecgOffset = 0;
-
 function drawECG() {
   const y = canvas.height / 2;
   const amplitude =
@@ -167,7 +181,6 @@ function drawECG() {
 
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
-
   ctx.strokeStyle = 'rgba(180,120,255,0.8)';
   ctx.shadowColor = '#c77dff';
   ctx.shadowBlur = 12;
@@ -175,25 +188,23 @@ function drawECG() {
 
   ctx.beginPath();
   for (let x = 0; x < canvas.width; x += 6) {
-    let wave =
-      Math.sin((x + ecgOffset) * 0.04) * amplitude *
-      Math.exp(-pulsePhase * 3);
-
+    let wave = Math.sin((x + ecgOffset) * 0.04) * amplitude;
     if (x === 0) ctx.moveTo(x, y + wave);
     else ctx.lineTo(x, y + wave);
   }
   ctx.stroke();
-
   ctx.restore();
   ecgOffset += 6;
 }
 
 /* ===================== SOUND ===================== */
 function playBeat(delay=0) {
+  if (!audioCtx || audioCtx.state !== 'running') return;
+
   const osc = audioCtx.createOscillator();
   const gain = audioCtx.createGain();
-  osc.frequency.value = 110;
   osc.type = 'sine';
+  osc.frequency.value = 110;
 
   const t = audioCtx.currentTime + delay;
   gain.gain.setValueAtTime(0.001, t);
@@ -211,8 +222,16 @@ function playHeartbeat() {
   playBeat(0.18);
 }
 
-window.addEventListener('click', () => audioCtx.resume(), { once:true });
-window.addEventListener('touchstart', () => audioCtx.resume(), { once:true });
+/* 🔥 iOS / PWA recovery hooks */
+['touchstart','click'].forEach(evt =>
+  window.addEventListener(evt, ensureAudio, { passive:true })
+);
+
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) ensureAudio();
+});
+
+window.addEventListener('pageshow', ensureAudio);
 
 /* ===================== LOOP ===================== */
 function animate(time) {
