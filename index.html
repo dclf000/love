@@ -45,7 +45,7 @@ canvas { display: block; }
 .heart-menu{position:fixed;top:15px;right:15px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:end}.heart-menu a,.heart-menu button{background:#281638bb;border:1px solid #b77bea;border-radius:24px;color:#f0d9ff;padding:9px 13px;text-decoration:none;font:13px system-ui;cursor:pointer}.heart-menu button[hidden]{display:none}
 </style>
 <link rel="stylesheet" href="royal-purple.css?v=7">
-<meta name="site-build" content="royal-heart-visible-20261009-10">
+<meta name="site-build" content="royal-heart-flowing-20261009-11">
 </head>
 
 <body>
@@ -54,7 +54,7 @@ canvas { display: block; }
 <div class="love-overlay"><div id="loveMessage"></div><div id="loveCounter"></div></div>
 <script>
 /* Check deployed build on return to the installed phone app. */
-(()=>{const build="royal-heart-visible-20261009-10";let checking=false;
+(()=>{const build="royal-heart-flowing-20261009-11";let checking=false;
 async function checkUpdate(){if(checking||document.hidden)return;checking=true;
 try{const response=await fetch("./index.html?update="+Date.now(),{cache:"no-store"});
 if(response.ok){const html=await response.text();const match=html.match(/<meta name="site-build" content="([^"]+)"/);
@@ -144,7 +144,7 @@ function resize() {
       r:outline?.975+Math.random()*.025:Math.sqrt(Math.random())*.975,
       size:outline?1.15+Math.random()*.85:layer<.76?.9+Math.random()*.65:1.45+Math.random()*.9,
       alpha:outline?.65+Math.random()*.3:.35+Math.random()*.55,
-      speed:(.07+Math.random()*.12)*(Math.random()<.5?-1:1),
+      speed:.32+Math.random()*.27,
       phase:Math.random()*Math.PI*2,
       outline,
       layer:layer<.48?0:layer<.88?1:2
@@ -221,14 +221,35 @@ function drawHeart() {
     ctx.beginPath();ctx.fillStyle=palette[layer];ctx.globalAlpha=layer===0?.95:layer===1?.95:1;
     for(const p of heartParticles){
       if(p.layer!==layer)continue;
-      const angle=p.t+(reducedMotion?0:time*(p.outline?.23:p.speed));
-      const radius=p.outline?p.r:Math.max(.025,Math.min(.975,p.r+.012*Math.sin(time*.9+p.phase)));
+      const angle=p.t+(reducedMotion?0:time*(p.outline?.4:p.speed));
+      const radius=p.outline?p.r:Math.max(.025,Math.min(.975,p.r+.025*Math.sin(time*1.4+p.phase)));
       const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
       const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
       ctx.moveTo(heartCenterX+x+p.size,heartCenterY+y);
       ctx.arc(heartCenterX+x,heartCenterY+y,p.size,0,Math.PI*2);
     }
     ctx.fill();
+  }
+  // Moving star streaks reveal the actual direction of particle flow.
+  // Only a small sample gets a short trail to keep mobile rendering affordable.
+  if(!reducedMotion){
+    ctx.globalAlpha=.78;ctx.lineWidth=lowPower?1:1.35;
+    ctx.strokeStyle='#e8b4ff';ctx.beginPath();
+    const sampleStep=lowPower?43:37;
+    for(let i=0;i<heartParticles.length;i+=sampleStep){
+      const p=heartParticles[i];
+      if(p.outline)continue;
+      const angle=p.t+time*p.speed;
+      const prev=angle-.065;
+      const radius=Math.max(.025,Math.min(.975,p.r+.025*Math.sin(time*1.4+p.phase)));
+      const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
+      const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
+      const px=16*Math.pow(Math.sin(prev),3)*radius*heartScale*pulse;
+      const py=-(13*Math.cos(prev)-5*Math.cos(2*prev)-2*Math.cos(3*prev)-Math.cos(4*prev))*radius*heartScale*pulse;
+      ctx.moveTo(heartCenterX+px,heartCenterY+py);
+      ctx.lineTo(heartCenterX+x,heartCenterY+y);
+    }
+    ctx.stroke();
   }
   // Crisp outline: readable even while interior particles move.
   ctx.beginPath();
