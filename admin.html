@@ -60,7 +60,7 @@ async function showDashboard() {
   login.hidden=true; dashboard.hidden=false; await load();
 }
 async function count(query) {
-  const {count,error} = await query.select("*",{count:"exact",head:true});
+  const {count,error} = await query;
   if(error) throw error; return count ?? 0;
 }
 async function load() {
@@ -68,9 +68,9 @@ async function load() {
   try {
     const start=new Date(); start.setUTCHours(0,0,0,0);
     const [total,today,homes,rows] = await Promise.all([
-      count(client.from("heart_visits")),
-      count(client.from("heart_visits").gte("visited_at",start.toISOString())),
-      count(client.from("heart_visits").eq("event_type","home_screen_launch")),
+      count(client.from("heart_visits").select("*",{count:"exact",head:true})),
+      count(client.from("heart_visits").select("*",{count:"exact",head:true}).gte("visited_at",start.toISOString())),
+      count(client.from("heart_visits").select("*",{count:"exact",head:true}).eq("event_type","home_screen_launch")),
       client.from("heart_visits").select("visited_at,device_type,event_type,display_mode").order("visited_at",{ascending:false}).limit(50)
     ]);
     if(rows.error) throw rows.error;
