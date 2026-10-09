@@ -42,6 +42,9 @@ a{color:#d6b5ff}select,textarea,input[type=date],input[type=color]{background:#1
 <p><label>Particle speed <input id="particleSpeed" type="range" min=".2" max="3" step=".1"></label> <output id="speedValue"></output></p>
 <p><label>Heart color <input id="heartColor" type="color"></label></p>
 <button id="saveSettings">Save settings</button><p id="settingsStatus" role="status"></p></section>
+<section><h2>📷 Photo management</h2><p>Uploaded photos are publicly visible in Our Memories. Maximum 10 MB per image.</p><input id="photoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><input id="photoCaption" placeholder="Memory caption"><input id="photoDate" type="date"><button id="uploadPhoto">Upload photo</button><p id="photoStatus"></p><div id="photoList"></div></section>
+<section><h2>🎵 Music settings</h2><p class="hint">Use a publicly accessible HTTPS audio file URL. Playback requires a visitor tap.</p><input id="musicUrl" type="url" placeholder="https://example.com/song.mp3" style="width:min(100%,500px)"><label>Volume <input id="musicVolume" type="range" min="0" max="1" step=".05" value=".35"></label><button id="saveMusic">Save music</button><p id="musicStatus"></p></section>
+<section><h2>🛡️ Admin activity log</h2><div id="auditLog"></div></section>
 <section><h2>Visitor activity timeline</h2><div class="scroll">
 <table><thead><tr><th>Time</th><th>Device</th><th>Activity</th><th>Mode</th><th>Browser</th><th>Session</th></tr></thead><tbody id="visits"></tbody></table>
 </div></section>
@@ -65,7 +68,7 @@ async function showDashboard() {
     err.textContent="This account has not been authorized as an administrator.";
     return;
   }
-  login.hidden=true; dashboard.hidden=false; await Promise.all([load(),loadSettings()]);
+  login.hidden=true; dashboard.hidden=false; await Promise.all([load(),loadSettings(),loadPhotos(),loadAudit()]);
 }
 const $=id=>document.getElementById(id);
 let exported=[];
@@ -132,6 +135,7 @@ async function loadSettings(){
  $("messages").value=(data.messages||[]).join("\n");$("anniversary").value=data.anniversary_date||"";
  $("heartSize").value=data.heart_size;$("particleSpeed").value=data.particle_speed;$("heartColor").value=data.heart_color;
  $("sizeValue").textContent=data.heart_size;$("speedValue").textContent=data.particle_speed;
+ $("musicUrl").value=data.music_url||"";$("musicVolume").value=data.music_volume??.35;
 }
 $("heartSize").oninput=()=>$("sizeValue").textContent=$("heartSize").value;
 $("particleSpeed").oninput=()=>$("speedValue").textContent=$("particleSpeed").value;
@@ -147,6 +151,42 @@ $("csv").onclick=()=>{
  const csv=[keys.join(","),...exported.map(r=>keys.map(k=>quote(r[k])).join(","))].join("\r\n");
  const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));const a=document.createElement("a");a.href=url;a.download="heart-visits.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
 };
+async function loadPhotos(){
+ const root=$("photoList");root.textContent="Loading photos…";
+ const {data,error}=await client.from("heart_photos").select("id,storage_path,caption,memory_date").order("created_at",{ascending:false}).limit(100);
+ root.replaceChildren();if(error){root.textContent="Run supabase-memories-upgrade.sql first: "+error.message;return}
+ for(const p of data){const line=document.createElement("p");const img=document.createElement("img");img.src=client.storage.from("heart-memories").getPublicUrl(p.storage_path).data.publicUrl;img.width=90;img.alt=p.caption;
+ const text=document.createElement("span");text.textContent=" "+(p.caption||"Untitled")+" ";
+ const del=document.createElement("button");del.textContent="Delete";del.onclick=async()=>{if(!confirm("Delete this photo permanently?"))return;const result=await client.from("heart_photos").delete().eq("id",p.id);if(result.error){$("photoStatus").textContent=result.error.message;return}await client.storage.from("heart-memories").remove([p.storage_path]);await Promise.all([loadPhotos(),loadAudit()])};
+ line.append(img,text,del);root.append(line)}
+ if(!data.length)root.textContent="No photos yet.";
+}
+$("uploadPhoto").onclick=async()=>{
+ const file=$("photoFile").files[0];if(!file)return $("photoStatus").textContent="Choose a photo first.";
+ if(file.size>10*1024*1024)return $("photoStatus").textContent="Maximum file size is 10 MB.";
+ if(!["image/jpeg","image/png","image/webp","image/gif"].includes(file.type))return $("photoStatus").textContent="Unsupported image type.";
+ $("photoStatus").textContent="Uploading…";
+ const ext={"image/jpeg":"jpg","image/png":"png","image/webp":"webp","image/gif":"gif"}[file.type];
+ const path=crypto.randomUUID()+"."+ext;
+ const uploaded=await client.storage.from("heart-memories").upload(path,file,{contentType:file.type});
+ if(uploaded.error)return $("photoStatus").textContent=uploaded.error.message;
+ const saved=await client.from("heart_photos").insert({storage_path:path,caption:$("photoCaption").value.trim(),memory_date:$("photoDate").value||null});
+ if(saved.error){await client.storage.from("heart-memories").remove([path]);return $("photoStatus").textContent=saved.error.message}
+ $("photoStatus").textContent="Photo added!";$("photoFile").value="";await Promise.all([loadPhotos(),loadAudit()]);
+};
+$("saveMusic").onclick=async()=>{
+ const url=$("musicUrl").value.trim();if(url&&!url.startsWith("https://"))return $("musicStatus").textContent="Use an HTTPS audio URL.";
+ const {data,error}=await client.from("heart_site_settings").update({music_url:url,music_volume:Number($("musicVolume").value),updated_at:new Date().toISOString()}).eq("id",1).select("id");
+ $("musicStatus").textContent=error?error.message:data?.length?"Music settings saved.":"Unable to save.";
+ if(!error)loadAudit();
+};
+async function loadAudit(){
+ const {data,error}=await client.from("heart_admin_audit").select("happened_at,action,details").order("happened_at",{ascending:false}).limit(30);
+ const root=$("auditLog");root.replaceChildren();if(error){root.textContent="Run supabase-memories-upgrade.sql first: "+error.message;return}
+ for(const x of data){const p=document.createElement("p");p.textContent=new Date(x.happened_at).toLocaleString()+" — "+x.action+" — "+x.details;root.append(p)}
+ if(!data.length)root.textContent="No admin changes recorded yet.";
+}
+setInterval(()=>{if(!dashboard.hidden)load()},30000);
 document.getElementById("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();err.textContent="";
   const {error}=await client.auth.signInWithPassword({
