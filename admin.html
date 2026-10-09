@@ -182,7 +182,7 @@ $("uploadMp3").onclick=async()=>{
  const file=$("mp3File").files[0],status=$("mp3Status"),button=$("uploadMp3");
  if(!file){status.textContent="Choose an MP3 file first.";return}
  if(file.size>20*1024*1024){status.textContent="Maximum MP3 size is 20 MB.";return}
- if(!/\\.mp3$/i.test(file.name)||!["audio/mpeg","audio/mp3",""].includes(file.type)){status.textContent="Please select a valid .mp3 audio file.";return}
+ if(!file.name.toLowerCase().endsWith(".mp3")){status.textContent="Please select a file ending in .mp3.";return}
  button.disabled=true;status.textContent="Uploading MP3…";
  const path=crypto.randomUUID()+".mp3";
  try{
