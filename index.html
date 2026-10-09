@@ -44,6 +44,7 @@ canvas { display: block; }
 }
 .heart-menu{position:fixed;top:15px;right:15px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:end}.heart-menu a,.heart-menu button{background:#281638bb;border:1px solid #b77bea;border-radius:24px;color:#f0d9ff;padding:9px 13px;text-decoration:none;font:13px system-ui;cursor:pointer}.heart-menu button[hidden]{display:none}
 </style>
+<link rel="stylesheet" href="royal-purple.css?v=1">
 </head>
 
 <body>
@@ -89,6 +90,7 @@ async function ensureAudio() {
 /* ===================== VISUAL STATE ===================== */
 let heartParticles = [];
 let heartScale, heartCenterX, heartCenterY;
+let cosmicStars=[];
 
 /* ===================== RESIZE ===================== */
 function resize() {
@@ -113,6 +115,7 @@ function resize() {
   heartCenterX = canvas.width / 2;
   heartCenterY = canvas.height / 2;
 
+  cosmicStars=Array.from({length:Math.min(110,Math.floor(canvas.width*canvas.height/7000))},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:.3+Math.random()*1.4,phase:Math.random()*6.28}));
   heartParticles = [];
   for (let i = 0; i < 1200; i++) {
     let t = Math.random() * Math.PI * 2;
@@ -149,6 +152,12 @@ function drawMatrix() {
   ctx.globalAlpha = 1;
 }
 
+/* ===================== COSMIC STARS ===================== */
+function drawStars(time){
+ ctx.save();
+ for(const s of cosmicStars){const a=.2+.5*(.5+.5*Math.sin(time*.0007+s.phase));ctx.fillStyle="rgba(221,184,255,"+a+")";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()}
+ ctx.restore();
+}
 /* ===================== HEART ===================== */
 function drawHeart() {
   let pulse = pulsePhase < 0.2
@@ -161,14 +170,17 @@ function drawHeart() {
   ctx.save();
   ctx.globalCompositeOperation = 'lighter';
 
+  ctx.shadowColor=window.heartOptions?.heart_color || '#c878ff';
+  ctx.shadowBlur=15;
   heartParticles.forEach(p => {
     p.t += p.speed * (window.heartOptions?.particle_speed || 1);
-    let x = 16 * Math.pow(Math.sin(p.t), 3) * p.r * heartScale * pulse;
+    let depth=.72+.28*Math.cos(p.t*2+p.r*4);
+    let x = 16 * Math.pow(Math.sin(p.t), 3) * p.r * heartScale * pulse * depth;
     let y = -(13*Math.cos(p.t)-5*Math.cos(2*p.t)
              -2*Math.cos(3*p.t)-Math.cos(4*p.t))
              * p.r * heartScale * pulse;
 
-    ctx.globalAlpha = p.alpha;
+    ctx.globalAlpha = p.alpha * (.65+.35*depth);
     ctx.fillStyle = window.heartOptions?.heart_color || 'rgb(200,120,255)';
     ctx.beginPath();
     ctx.arc(heartCenterX+x, heartCenterY+y, p.size, 0, Math.PI*2);
