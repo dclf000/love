@@ -1,0 +1,10 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Our Memories ❤️</title><style>
+body{background:#090510;color:#f2dfff;font:16px system-ui;margin:0;text-align:center}header{padding:30px 16px}a{color:#d9aaff}#gallery{max-width:1050px;margin:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}.memory{background:#21152f;padding:12px;border-radius:16px;box-shadow:0 0 25px #4b236a55}.memory img{width:100%;height:260px;object-fit:cover;border-radius:10px}.memory p{white-space:pre-wrap}small{color:#c6add5}</style></head><body>
+<header><h1>📷 Our Memories</h1><p>Little moments, forever treasured.</p><a href="./">❤️ Back to our heart</a> · <a href="stars.html">✨ Our Starry Sky</a></header><main id="gallery">Loading memories…</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script>
+const client=supabase.createClient("https://sflilptubekduvxqpiiw.supabase.co","sb_publishable_PoY_xXp55Iz0ho4gg0cIhw_JUdGt7Yh");
+(async()=>{const root=document.getElementById("gallery");const {data,error}=await client.from("heart_photos").select("storage_path,caption,memory_date").order("created_at",{ascending:false}).limit(100);
+root.replaceChildren();if(error){root.textContent="Gallery setup is pending.";return}if(!data.length){root.textContent="Our first memory is waiting to be added ❤️";return}
+for(const m of data){const card=document.createElement("article");card.className="memory";const img=document.createElement("img");img.loading="lazy";img.alt=m.caption||"Our memory";img.src=client.storage.from("heart-memories").getPublicUrl(m.storage_path).data.publicUrl;
+const p=document.createElement("p");p.textContent=m.caption;const date=document.createElement("small");date.textContent=m.memory_date||"";card.append(img,p,date);root.append(card)}})();
+</script></body></html>
