@@ -3,18 +3,22 @@
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Heart | Private Admin</title>
 <style>
-*{box-sizing:border-box}body{margin:0;background:#08080c;color:#f5edff;font:15px system-ui,Arial}
-main{max-width:1100px;margin:0 auto;padding:32px 18px}
-h1{font-size:clamp(24px,4vw,34px)}p,.muted{color:#b9a9c8}
-section{background:#171320;border:1px solid #33263f;border-radius:16px;padding:22px;margin:20px 0}
-input,button{font:inherit;padding:12px;border-radius:9px}
-input{background:#090710;color:white;border:1px solid #68527d;max-width:100%;width:280px;margin:5px}
-button{background:#a879e8;border:0;color:#140a20;cursor:pointer;font-weight:700;margin:5px}
-button:disabled{opacity:.5} .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
-.stat{background:#251c30;padding:18px;border-radius:12px}.stat strong{display:block;font-size:30px;margin-top:8px}
-table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #352b40}
-.scroll{overflow-x:auto}#dashboard[hidden],#login[hidden]{display:none}
-a{color:#d6b5ff}select,textarea,input[type=date],input[type=color]{background:#120d1b;color:white;border:1px solid #68527d;padding:10px;border-radius:8px}textarea{width:100%;min-height:110px}.bar{background:#ae77ec;margin:5px 0;padding:5px;border-radius:5px;min-width:2px}.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.hint{font-size:13px;color:#b9a9c8}
+:root{color-scheme:dark;--accent:#bb8df2;--text:#f4eaff;--muted:#bda8cf}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% 0%,#27123c 0%,#0b0714 55%,#06040b 100%);color:var(--text);font:15px system-ui,Arial;min-height:100vh}
+main{max-width:1200px;margin:auto;padding:38px 22px}h1{font:normal clamp(30px,5vw,48px) Georgia,serif;letter-spacing:.025em;margin-bottom:6px}h2{font:normal 24px Georgia,serif;margin:0 0 20px}p,.muted,.hint{color:var(--muted);line-height:1.6}
+section{background:linear-gradient(135deg,#2b1742b3,#130c23c9);border:1px solid #b888ec35;border-radius:20px;padding:24px;margin:20px 0;box-shadow:0 14px 44px #0004;backdrop-filter:blur(15px)}
+input,button,select,textarea{font:inherit;padding:11px 13px;border-radius:11px}
+input,select,textarea{background:#10091e;color:white;border:1px solid #8661a7;max-width:100%;margin:5px}input{width:280px}input[type=range],input[type=color],input[type=file]{width:auto}
+textarea{width:100%;min-height:110px}button{background:linear-gradient(135deg,#e5c6ff,#ae77ed);border:0;color:#220f36;cursor:pointer;font-weight:700;margin:5px;transition:filter .2s,transform .2s}button:hover{filter:brightness(1.1);transform:translateY(-1px)}button:disabled{opacity:.5}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:16px}.stat{background:linear-gradient(140deg,#42235d,#211232);border:1px solid #a97dd54d;padding:22px;border-radius:16px;color:#ddc7ef}.stat strong{display:block;font:normal 38px Georgia,serif;color:white;margin-top:12px}
+.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px;border-bottom:1px solid #6b4c8340}th{color:#dfbafa;font-size:12px;letter-spacing:.06em;text-transform:uppercase}.scroll{overflow-x:auto}
+#dashboard[hidden],#login[hidden]{display:none}#login{max-width:500px;margin:35px auto}#login input{display:block;width:100%;margin:12px 0}
+a{color:#dfb4ff}.bar{background:linear-gradient(90deg,#854bc9,#e2b5ff);margin:6px 0 14px;padding:5px;border-radius:7px;min-width:2px;box-shadow:0 0 15px #a365db3a}.hint{font-size:13px}
+#photoList p{display:flex;align-items:center;gap:12px;border-bottom:1px solid #75568a55;padding:9px}#photoList img{border-radius:10px;object-fit:cover;height:70px}
+#status,#settingsStatus,#photoStatus,#musicStatus{overflow-wrap:anywhere}
+@media(max-width:600px){main{padding:22px 12px}section{padding:17px}h2{font-size:21px}}
+@media(prefers-reduced-motion:reduce){button{transition:none}}
 </style></head><body><main>
 <h1>❤️ Heart Admin Dashboard</h1>
 <p>Private visitor statistics for LF ❤️ LM. Home Screen launches are detected only when supported; installs cannot be reliably counted.</p>
