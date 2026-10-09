@@ -45,7 +45,7 @@ canvas { display: block; }
 .heart-menu{position:fixed;top:15px;right:15px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:end}.heart-menu a,.heart-menu button{background:#281638bb;border:1px solid #b77bea;border-radius:24px;color:#f0d9ff;padding:9px 13px;text-decoration:none;font:13px system-ui;cursor:pointer}.heart-menu button[hidden]{display:none}
 </style>
 <link rel="stylesheet" href="royal-purple.css?v=1">
-<meta name="site-build" content="royal-heart-20261009-4">
+<meta name="site-build" content="royal-heart-20261009-5">
 </head>
 
 <body>
@@ -65,7 +65,7 @@ setInterval(checkUpdate,120000);
 })();
 </script>
 <script defer src="heart-extras.js"></script>
-<script defer src="heart-music.js?v=20261009-2"></script>
+<script defer src="heart-music.js?v=mp3-1"></script>
 
 <script>
 window.onload = () => {
@@ -133,13 +133,13 @@ function resize() {
 
   cosmicStars=Array.from({length:Math.min(lowPower?25:45,Math.floor(canvas.width*canvas.height/12000))},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:.3+Math.random()*1.4,phase:Math.random()*6.28}));
   heartParticles = [];
-  for (let i = 0; i < (lowPower?680:1000); i++) {
-    let t = (i / (lowPower?680:1000)) * Math.PI * 2;
-    let r = i % 5 === 0 ? .55 + Math.random()*.35 : .94 + Math.random()*.06;
+  for (let i = 0; i < (lowPower?1300:2000); i++) {
+    let t = (i / (lowPower?1300:2000)) * Math.PI * 2;
+    let r = Math.sqrt(Math.random());
     heartParticles.push({
       t, r,
-      size: lowPower?1.35:1.55,
-      alpha: Math.random()*0.6+0.3,
+      size: lowPower?1.4:1.65,
+      alpha: .55+Math.random()*.4,
       speed: 0
     });
   }
