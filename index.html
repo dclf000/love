@@ -21,6 +21,8 @@ html, body {
   touch-action: manipulation;
 }
 canvas { display: block; }
+.love-overlay{position:fixed;bottom:4vh;left:5%;width:90%;text-align:center;color:#e6b3ff;pointer-events:none;text-shadow:0 0 10px #c77dff;}
+
 
 .center-text {
   position: absolute;
@@ -46,6 +48,8 @@ canvas { display: block; }
 <body>
 <canvas id="canvas"></canvas>
 <div class="center-text" id="centerText">LF ❤ LM</div>
+<div class="love-overlay"><div id="loveMessage"></div><div id="loveCounter"></div></div>
+<script defer src="heart-extras.js"></script>
 
 <script>
 window.onload = () => {
@@ -103,7 +107,7 @@ function resize() {
     trail: 2 + Math.floor(Math.random()*3)
   }));
 
-  heartScale = Math.min(canvas.width, canvas.height) * 0.018;
+  heartScale = Math.min(canvas.width, canvas.height) * 0.018 * (window.heartOptions?.heart_size || 1);
   heartCenterX = canvas.width / 2;
   heartCenterY = canvas.height / 2;
 
@@ -156,14 +160,14 @@ function drawHeart() {
   ctx.globalCompositeOperation = 'lighter';
 
   heartParticles.forEach(p => {
-    p.t += p.speed;
+    p.t += p.speed * (window.heartOptions?.particle_speed || 1);
     let x = 16 * Math.pow(Math.sin(p.t), 3) * p.r * heartScale * pulse;
     let y = -(13*Math.cos(p.t)-5*Math.cos(2*p.t)
              -2*Math.cos(3*p.t)-Math.cos(4*p.t))
              * p.r * heartScale * pulse;
 
     ctx.globalAlpha = p.alpha;
-    ctx.fillStyle = 'rgb(200,120,255)';
+    ctx.fillStyle = window.heartOptions?.heart_color || 'rgb(200,120,255)';
     ctx.beginPath();
     ctx.arc(heartCenterX+x, heartCenterY+y, p.size, 0, Math.PI*2);
     ctx.fill();
