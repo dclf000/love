@@ -190,7 +190,7 @@ function drawHeart() {
   ctx.beginPath();
   for(const p of heartParticles){
     // Interior particles circulate visibly; the outline stays crisp and heart-shaped.
-    const angle=p.t+(p.outline?0:time*p.speed);
+    const angle=p.t+time*(p.outline?.22:p.speed);
     const radius=p.outline?p.r:Math.max(.02,Math.min(.97,p.r+.025*Math.sin(time*1.3+p.phase)));
     const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
     const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
