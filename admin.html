@@ -47,7 +47,7 @@ a{color:#dfb4ff}.bar{background:linear-gradient(90deg,#854bc9,#e2b5ff);margin:6p
 <p><label>Heart color <input id="heartColor" type="color"></label></p>
 <button id="saveSettings">Save settings</button><p id="settingsStatus" role="status"></p></section>
 <section><h2>📷 Photo management</h2><p>Uploaded photos are publicly visible in Our Memories. Maximum 10 MB per image.</p><input id="photoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><input id="photoCaption" placeholder="Memory caption"><input id="photoDate" type="date"><button id="uploadPhoto">Upload photo</button><p id="photoStatus"></p><div id="photoList"></div></section>
-<section><h2>🎵 Music settings</h2><p class="hint">Use a publicly accessible direct MP3 URL (HTTPS), not a YouTube link. Visitors can play and pause music using the native audio player.</p><input id="musicUrl" type="url" placeholder="https://example.com/our-song.mp3" style="width:min(100%,500px)"><label>Volume <input id="musicVolume" type="range" min="0" max="1" step=".05" value=".35"></label><button id="saveMusic">Save music</button><p id="musicStatus"></p></section>
+<section><h2>🎵 Music settings</h2><p class="hint">Upload an MP3 (maximum 20 MB). Only signed-in administrators can upload; the chosen song plays publicly on the heart page.</p><input id="mp3File" type="file" accept=".mp3,audio/mpeg,audio/mp3"><button id="uploadMp3" type="button">Upload MP3 &amp; set as music</button><p id="mp3Status" role="status"></p><p class="hint">Use a publicly accessible direct MP3 URL (HTTPS), not a YouTube link. Visitors can play and pause music using the native audio player.</p><input id="musicUrl" type="url" placeholder="https://example.com/our-song.mp3" style="width:min(100%,500px)"><label>Volume <input id="musicVolume" type="range" min="0" max="1" step=".05" value=".35"></label><button id="saveMusic">Save music</button><p id="musicStatus"></p></section>
 <section><h2>🛡️ Admin activity log</h2><div id="auditLog"></div></section>
 <section><h2>Visitor activity timeline</h2><div class="scroll">
 <table><thead><tr><th>Time</th><th>Device</th><th>Activity</th><th>Mode</th><th>Browser</th><th>Session</th></tr></thead><tbody id="visits"></tbody></table>
@@ -178,8 +178,25 @@ $("uploadPhoto").onclick=async()=>{
  if(saved.error){await client.storage.from("heart-memories").remove([path]);return $("photoStatus").textContent=saved.error.message}
  $("photoStatus").textContent="Photo added!";$("photoFile").value="";await Promise.all([loadPhotos(),loadAudit()]);
 };
+$("uploadMp3").onclick=async()=>{
+ const file=$("mp3File").files[0],status=$("mp3Status"),button=$("uploadMp3");
+ if(!file){status.textContent="Choose an MP3 file first.";return}
+ if(file.size>20*1024*1024){status.textContent="Maximum MP3 size is 20 MB.";return}
+ if(!/\\.mp3$/i.test(file.name)||!["audio/mpeg","audio/mp3",""].includes(file.type)){status.textContent="Please select a valid .mp3 audio file.";return}
+ button.disabled=true;status.textContent="Uploading MP3…";
+ const path=crypto.randomUUID()+".mp3";
+ try{
+ const uploaded=await client.storage.from("heart-music").upload(path,file,{contentType:"audio/mpeg",upsert:false});
+ if(uploaded.error)throw uploaded.error;
+ const url=client.storage.from("heart-music").getPublicUrl(path).data.publicUrl;
+ const {data,error}=await client.from("heart_site_settings").update({music_url:url,music_volume:Number($("musicVolume").value),updated_at:new Date().toISOString()}).eq("id",1).select("id");
+ if(error||!data?.length){await client.storage.from("heart-music").remove([path]);throw error||Error("Could not save music settings")}
+ $("musicUrl").value=url;$("mp3File").value="";status.textContent="MP3 uploaded and set as website music!";await loadAudit();
+ }catch(e){status.textContent="Upload failed: "+e.message+" — run supabase-mp3-upload.sql in Supabase SQL Editor if not done."}
+ finally{button.disabled=false}
+};
 $("saveMusic").onclick=async()=>{
- const url=$("musicUrl").value.trim();if(url&&!url.startsWith("https://"))return $("musicStatus").textContent="Use an HTTPS YouTube or audio URL.";
+ const url=$("musicUrl").value.trim();if(url&&!url.startsWith("https://"))return $("musicStatus").textContent="Use a direct HTTPS MP3 URL.";
  const {data,error}=await client.from("heart_site_settings").update({music_url:url,music_volume:Number($("musicVolume").value),updated_at:new Date().toISOString()}).eq("id",1).select("id");
  $("musicStatus").textContent=error?error.message:data?.length?"Music settings saved.":"Unable to save.";
  if(!error)loadAudit();
