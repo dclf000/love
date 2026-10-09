@@ -45,7 +45,7 @@ canvas { display: block; }
 .heart-menu{position:fixed;top:15px;right:15px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:end}.heart-menu a,.heart-menu button{background:#281638bb;border:1px solid #b77bea;border-radius:24px;color:#f0d9ff;padding:9px 13px;text-decoration:none;font:13px system-ui;cursor:pointer}.heart-menu button[hidden]{display:none}
 </style>
 <link rel="stylesheet" href="royal-purple.css?v=1">
-<meta name="site-build" content="royal-heart-20261009-5">
+<meta name="site-build" content="royal-heart-shooting-trails-20261009-6">
 </head>
 
 <body>
@@ -54,7 +54,7 @@ canvas { display: block; }
 <div class="love-overlay"><div id="loveMessage"></div><div id="loveCounter"></div></div>
 <script>
 /* Check deployed build on return to the installed phone app. */
-(()=>{const build="royal-heart-20261009-5";let checking=false;
+(()=>{const build="royal-heart-shooting-trails-20261009-6";let checking=false;
 async function checkUpdate(){if(checking||document.hidden)return;checking=true;
 try{const response=await fetch("./index.html?update="+Date.now(),{cache:"no-store"});
 if(response.ok){const html=await response.text();const match=html.match(/<meta name="site-build" content="([^"]+)"/);
@@ -177,31 +177,29 @@ function drawStars(time){
  for(const s of cosmicStars){const a=.2+.5*(.5+.5*Math.sin(time*.0007+s.phase));ctx.fillStyle="rgba(221,184,255,"+a+")";ctx.beginPath();ctx.arc(s.x,s.y,s.r,0,Math.PI*2);ctx.fill()}
  ctx.restore();
 }
-/* ===================== OCCASIONAL SHOOTING STARS ===================== */
+/* ===================== VISIBLE SHOOTING STARS ===================== */
 let shootingStar=null;
-let nextShootingStar=performance.now()+11000+Math.random()*8000;
+let nextShootingStar=performance.now()+3000;
 function drawShootingStar(now){
  if(!shootingStar && now>=nextShootingStar){
-  const startX=canvas.width*(.15+Math.random()*.65);
-  shootingStar={x:startX,y:canvas.height*(.05+Math.random()*.28),start:now,duration:850+Math.random()*450};
-  nextShootingStar=now+16000+Math.random()*14000;
+  shootingStar={x:canvas.width*(.08+Math.random()*.48),y:canvas.height*(.08+Math.random()*.18),start:now,duration:1800};
+  nextShootingStar=now+11000+Math.random()*6000;
  }
  if(!shootingStar)return;
  const p=(now-shootingStar.start)/shootingStar.duration;
  if(p>=1){shootingStar=null;return}
- const x=shootingStar.x+p*Math.min(canvas.width*.32,250);
- const y=shootingStar.y+p*Math.min(canvas.height*.28,180);
- const opacity=Math.sin(Math.PI*p)*.75;
- ctx.save();
- ctx.globalCompositeOperation='screen';
- const tail=Math.min(canvas.width*.14,105);
- const g=ctx.createLinearGradient(x-tail,y-tail*.65,x,y);
- g.addColorStop(0,'rgba(210,160,255,0)');
- g.addColorStop(1,'rgba(237,206,255,'+opacity+')');
- ctx.strokeStyle=g;ctx.lineWidth=lowPower?1.3:1.8;
- ctx.beginPath();ctx.moveTo(x-tail,y-tail*.65);ctx.lineTo(x,y);ctx.stroke();
- ctx.fillStyle='rgba(255,236,255,'+opacity+')';
- ctx.beginPath();ctx.arc(x,y,lowPower?1.5:2.2,0,Math.PI*2);ctx.fill();
+ const travel=Math.min(canvas.width*.38,330),x=shootingStar.x+p*travel,y=shootingStar.y+p*travel*.48;
+ const opacity=Math.min(1,p*6,(1-p)*5);
+ const tail=Math.min(canvas.width*.22,170);
+ ctx.save();ctx.globalCompositeOperation='screen';
+ const grad=ctx.createLinearGradient(x-tail,y-tail*.48,x,y);
+ grad.addColorStop(0,'rgba(180,105,255,0)');
+ grad.addColorStop(.6,'rgba(196,138,255,'+(.5*opacity)+')');
+ grad.addColorStop(1,'rgba(255,255,255,'+opacity+')');
+ ctx.strokeStyle=grad;ctx.lineWidth=lowPower?3:4;
+ ctx.beginPath();ctx.moveTo(x-tail,y-tail*.48);ctx.lineTo(x,y);ctx.stroke();
+ ctx.fillStyle='rgba(255,255,255,'+opacity+')';
+ ctx.beginPath();ctx.arc(x,y,lowPower?3:4,0,Math.PI*2);ctx.fill();
  ctx.restore();
 }
 /* ===================== HEART ===================== */
@@ -225,24 +223,28 @@ function drawHeart() {
     ctx.arc(heartCenterX+x,heartCenterY+y,p.size,0,Math.PI*2);
   }
   ctx.fill();
-  // A few bright trailing sparks follow the moving outline, with no costly blur per particle.
-  ctx.beginPath();
-  ctx.globalAlpha=.52;
-  ctx.fillStyle='#e5b7ff';
-  const trailCount=lowPower?9:15;
-  for(let i=0;i<trailCount;i++){
-    const base=(i/trailCount)*Math.PI*2+time*.22;
-    for(let j=0;j<4;j++){
-      const a=base-j*.018;
-      const radius=.995-j*.006;
-      const x=16*Math.pow(Math.sin(a),3)*radius*heartScale*pulse;
-      const y=-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*radius*heartScale*pulse;
-      const size=(lowPower?1.65:2.1)*(1-j*.2);
-      ctx.moveTo(heartCenterX+x+size,heartCenterY+y);
-      ctx.arc(heartCenterX+x,heartCenterY+y,size,0,Math.PI*2);
+  // Bright moving ribbons trace the outline; small number of strokes keeps rendering light.
+  const ribbonCount=lowPower?3:4;
+  ctx.globalAlpha=1;
+  ctx.lineCap='round';
+  for(let i=0;i<ribbonCount;i++){
+    const head=time*.38+i*Math.PI*2/ribbonCount;
+    for(let j=9;j>=0;j--){
+      const angle=head-j*.026;
+      const radius=.985;
+      const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
+      const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
+      if(j===9){ctx.beginPath();ctx.moveTo(heartCenterX+x,heartCenterY+y)}
+      else {ctx.lineTo(heartCenterX+x,heartCenterY+y)}
     }
+    ctx.strokeStyle='rgba(245,193,255,.85)';
+    ctx.lineWidth=lowPower?3:4;
+    ctx.stroke();
+    const a=head;
+    const x=16*Math.pow(Math.sin(a),3)*.985*heartScale*pulse;
+    const y=-(13*Math.cos(a)-5*Math.cos(2*a)-2*Math.cos(3*a)-Math.cos(4*a))*.985*heartScale*pulse;
+    ctx.beginPath();ctx.fillStyle='#fff3ff';ctx.arc(heartCenterX+x,heartCenterY+y,lowPower?3:4,0,Math.PI*2);ctx.fill();
   }
-  ctx.fill();
   ctx.restore();
 }
 
