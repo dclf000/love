@@ -45,7 +45,7 @@ canvas { display: block; }
 .heart-menu{position:fixed;top:15px;right:15px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:end}.heart-menu a,.heart-menu button{background:#281638bb;border:1px solid #b77bea;border-radius:24px;color:#f0d9ff;padding:9px 13px;text-decoration:none;font:13px system-ui;cursor:pointer}.heart-menu button[hidden]{display:none}
 </style>
 <link rel="stylesheet" href="royal-purple.css?v=7">
-<meta name="site-build" content="royal-heart-filled-trails-20261009-8">
+<meta name="site-build" content="royal-heart-nebula-20261009-9">
 </head>
 
 <body>
@@ -54,7 +54,7 @@ canvas { display: block; }
 <div class="love-overlay"><div id="loveMessage"></div><div id="loveCounter"></div></div>
 <script>
 /* Check deployed build on return to the installed phone app. */
-(()=>{const build="royal-heart-filled-trails-20261009-8";let checking=false;
+(()=>{const build="royal-heart-nebula-20261009-9";let checking=false;
 async function checkUpdate(){if(checking||document.hidden)return;checking=true;
 try{const response=await fetch("./index.html?update="+Date.now(),{cache:"no-store"});
 if(response.ok){const html=await response.text();const match=html.match(/<meta name="site-build" content="([^"]+)"/);
@@ -134,17 +134,20 @@ function resize() {
 
   cosmicStars=Array.from({length:Math.min(lowPower?25:45,Math.floor(canvas.width*canvas.height/12000))},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:.3+Math.random()*1.4,phase:Math.random()*6.28}));
   heartParticles = [];
-  const count=reducedMotion?1100:lowPower?2200:3400;
+  // Dense but delicate stardust: fixed bright rim plus softly moving interior.
+  const count=reducedMotion?1150:lowPower?2400:3500;
   for(let i=0;i<count;i++){
-    const outline=i<count*.16;
+    const outline=i<count*.19;
+    const layer=Math.random();
     heartParticles.push({
       t:Math.random()*Math.PI*2,
-      r:outline?.965+Math.random()*.035:Math.sqrt(Math.random())*.975,
-      size:lowPower?1.65:1.9,
-      alpha:.65+Math.random()*.35,
-      speed:(.16+Math.random()*.20)*(Math.random()<.5?-1:1),
+      r:outline?.975+Math.random()*.025:Math.sqrt(Math.random())*.975,
+      size:outline?.65+Math.random()*.65:layer<.76?.45+Math.random()*.5:1.1+Math.random()*.7,
+      alpha:outline?.65+Math.random()*.3:.35+Math.random()*.55,
+      speed:(.07+Math.random()*.12)*(Math.random()<.5?-1:1),
       phase:Math.random()*Math.PI*2,
-      outline
+      outline,
+      layer:layer<.72?0:layer<.95?1:2
     });
   }
 }
@@ -206,45 +209,50 @@ function drawShootingStar(now){
 /* ===================== HEART ===================== */
 function drawHeart() {
   const time=performance.now()*.001;
-  const pulse=pulsePhase<.2?1+.13*Math.sin(pulsePhase/.2*Math.PI):1;
+  const pulse=pulsePhase<.2?1+.10*Math.sin(pulsePhase/.2*Math.PI):1;
   centerText.style.transform=`translate(-50%, -50%) scale(${1+pulse*.12})`;
   ctx.save();
   ctx.globalCompositeOperation='lighter';
   ctx.shadowBlur=0;
-  ctx.fillStyle=window.heartOptions?.heart_color||'#c878ff';
-  ctx.globalAlpha=.96;
-  ctx.beginPath();
-  for(const p of heartParticles){
-    // Interior particles circulate visibly; the outline stays crisp and heart-shaped.
-    const angle=p.t+(reducedMotion?0:time*(p.outline?.32:p.speed*.95));
-    const radius=p.outline?p.r:Math.max(.02,Math.min(.97,p.r+.025*Math.sin(time*1.3+p.phase)));
-    const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
-    const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
-    ctx.moveTo(heartCenterX+x+p.size,heartCenterY+y);
-    ctx.arc(heartCenterX+x,heartCenterY+y,p.size,0,Math.PI*2);
+  const color=window.heartOptions?.heart_color||'#c878ff';
+  // Draw in three batches to retain color depth without expensive per-dot shadows.
+  const palette=[color,'#dca7ff','#fff0ff'];
+  for(let layer=0;layer<3;layer++){
+    ctx.beginPath();ctx.fillStyle=palette[layer];ctx.globalAlpha=layer===0?.55:layer===1?.7:.9;
+    for(const p of heartParticles){
+      if(p.layer!==layer)continue;
+      const angle=p.t+(reducedMotion?0:time*(p.outline?.23:p.speed));
+      const radius=p.outline?p.r:Math.max(.025,Math.min(.975,p.r+.012*Math.sin(time*.9+p.phase)));
+      const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
+      const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
+      ctx.moveTo(heartCenterX+x+p.size,heartCenterY+y);
+      ctx.arc(heartCenterX+x,heartCenterY+y,p.size,0,Math.PI*2);
+    }
+    ctx.fill();
   }
-  ctx.fill();
-  // Distinct, animated luminous comet trails along the heart contour.
-  const ribbonCount=reducedMotion?1:lowPower?3:4;
+  // Two fine comet streams instead of heavy white ribbons.
   ctx.lineCap='round';
-  for(let i=0;i<ribbonCount;i++){
-    const head=time*.32+i*Math.PI*2/ribbonCount;
-    const segments=18;
-    const points=[];
-    for(let j=segments;j>=0;j--){
-      const angle=head-j*.025;
-      const x=16*Math.pow(Math.sin(angle),3)*.99*heartScale*pulse;
-      const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*.99*heartScale*pulse;
-      points.push([heartCenterX+x,heartCenterY+y]);
+  const trails=reducedMotion?0:2;
+  for(let i=0;i<trails;i++){
+    const head=time*.23+i*Math.PI;
+    for(let j=0;j<2;j++){
+      ctx.beginPath();
+      for(let k=0;k<=24;k++){
+        const angle=head-(24-k)*.014;
+        const x=16*Math.pow(Math.sin(angle),3)*.995*heartScale*pulse;
+        const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*.995*heartScale*pulse;
+        if(k===0)ctx.moveTo(heartCenterX+x,heartCenterY+y);
+        else ctx.lineTo(heartCenterX+x,heartCenterY+y);
+      }
+      ctx.globalAlpha=j===0?.23:.7;
+      ctx.lineWidth=j===0?4:1.3;
+      ctx.strokeStyle=j===0?'#a653ee':'#efc9ff';
+      ctx.stroke();
     }
-    // Soft outer halo and sharp bright core make the trail visible over dense particles.
-    for(const [width,color] of [[lowPower?8:11,'rgba(154,61,255,.23)'],[lowPower?4:5,'rgba(238,154,255,.8)'],[1.6,'rgba(255,245,255,.98)']]){
-      ctx.beginPath();ctx.moveTo(points[0][0],points[0][1]);
-      for(let j=1;j<points.length;j++)ctx.lineTo(points[j][0],points[j][1]);
-      ctx.globalAlpha=1;ctx.strokeStyle=color;ctx.lineWidth=width;ctx.stroke();
-    }
-    const [hx,hy]=points[points.length-1];
-    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(hx,hy,lowPower?3:3.7,0,Math.PI*2);ctx.fill();
+    const x=16*Math.pow(Math.sin(head),3)*.995*heartScale*pulse;
+    const y=-(13*Math.cos(head)-5*Math.cos(2*head)-2*Math.cos(3*head)-Math.cos(4*head))*.995*heartScale*pulse;
+    ctx.globalAlpha=.95;ctx.fillStyle='#fff3ff';
+    ctx.beginPath();ctx.arc(heartCenterX+x,heartCenterY+y,1.9,0,Math.PI*2);ctx.fill();
   }
   ctx.restore();
 }
