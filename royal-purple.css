@@ -14,3 +14,17 @@ body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:0;bac
 .love-overlay{bottom:90px!important}
 @media(max-width:380px){.heart-menu a,.heart-menu button{padding:9px 7px!important}.love-overlay{bottom:82px!important}}
 @media(prefers-reduced-motion:reduce){body::before,#loveMessage{animation:none!important}}
+
+/* Compact floating MP3 player */
+.mini-player{position:fixed;z-index:7;right:16px;bottom:88px;width:min(320px,calc(100vw - 32px));box-sizing:border-box;padding:14px;border:1px solid rgba(220,175,255,.38);border-radius:18px;background:rgba(24,10,42,.94);box-shadow:0 12px 40px #000b;color:#f6eaff;font:13px system-ui;backdrop-filter:blur(10px)}
+.mini-player[hidden]{display:none!important}
+.mini-title,.mini-controls,.mini-volume{display:flex;align-items:center;gap:9px}
+.mini-title{justify-content:space-between;font-weight:650;margin-bottom:12px}
+.mini-player button{color:#fff;background:#7442a6;border:0;border-radius:12px;padding:7px 11px;cursor:pointer}
+.mini-title button{background:transparent;font-size:21px;padding:0 5px}
+.mini-controls input{flex:1;min-width:0}
+.mini-volume{margin-top:13px}.mini-volume input{flex:1;min-width:0}
+.mini-player input{accent-color:#d5a3ff;cursor:pointer}
+#miniStatus{font-size:11px;color:#ead0ff;margin:8px 0 0}#miniStatus:empty{display:none}
+@media(max-width:600px){.mini-player{bottom:83px;right:10px;width:min(310px,calc(100vw - 20px))}}
+@media(prefers-reduced-motion:reduce){.heart-menu a,.heart-menu button{transition:none!important}body::before{animation:none!important}}
