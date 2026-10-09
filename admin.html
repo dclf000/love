@@ -4,7 +4,7 @@
 <title>Heart | Private Admin</title>
 <style>
 *{box-sizing:border-box}body{margin:0;background:#08080c;color:#f5edff;font:15px system-ui,Arial}
-main{max-width:940px;margin:0 auto;padding:32px 18px}
+main{max-width:1100px;margin:0 auto;padding:32px 18px}
 h1{font-size:clamp(24px,4vw,34px)}p,.muted{color:#b9a9c8}
 section{background:#171320;border:1px solid #33263f;border-radius:16px;padding:22px;margin:20px 0}
 input,button{font:inherit;padding:12px;border-radius:9px}
@@ -14,7 +14,7 @@ button:disabled{opacity:.5} .stats{display:grid;grid-template-columns:repeat(aut
 .stat{background:#251c30;padding:18px;border-radius:12px}.stat strong{display:block;font-size:30px;margin-top:8px}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #352b40}
 .scroll{overflow-x:auto}#dashboard[hidden],#login[hidden]{display:none}
-a{color:#d6b5ff}
+a{color:#d6b5ff}select,textarea,input[type=date],input[type=color]{background:#120d1b;color:white;border:1px solid #68527d;padding:10px;border-radius:8px}textarea{width:100%;min-height:110px}.bar{background:#ae77ec;margin:5px 0;padding:5px;border-radius:5px;min-width:2px}.columns{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px}.hint{font-size:13px;color:#b9a9c8}
 </style></head><body><main>
 <h1>❤️ Heart Admin Dashboard</h1>
 <p>Private visitor statistics for LF ❤️ LM. Home Screen launches are detected only when supported; installs cannot be reliably counted.</p>
@@ -27,15 +27,23 @@ a{color:#d6b5ff}
 </form><p id="loginError" role="alert"></p>
 </section>
 <div id="dashboard" hidden>
-<button id="refresh">Refresh</button><button id="signout">Sign out</button>
+<label>Period <select id="period"><option value="7">7 days</option><option value="30">30 days</option><option value="90">90 days</option><option value="all">All time</option><option value="custom">Custom</option></select></label><label>From <input id="fromDate" type="date"></label><label>To <input id="toDate" type="date"></label><button id="refresh">Refresh</button><button id="csv">Export CSV</button><button id="signout">Sign out</button>
 <p id="status" role="status"></p>
 <div class="stats">
 <div class="stat">Total visits<strong id="total">—</strong></div>
 <div class="stat">Visits today (UTC)<strong id="today">—</strong></div>
-<div class="stat">Home Screen launches<strong id="homes">—</strong></div>
+<div class="stat">Home Screen launches<strong id="homes">—</strong></div><div class="stat">Sessions (estimated)<strong id="sessions">—</strong></div>
 </div>
-<section><h2>Recent activity</h2><div class="scroll">
-<table><thead><tr><th>Time</th><th>Device</th><th>Activity</th><th>Mode</th></tr></thead><tbody id="visits"></tbody></table>
+<div class="columns"><section><h2>Daily visits</h2><div id="chart"></div></section><section><h2>Device breakdown</h2><div id="devices"></div><h2>Browser breakdown</h2><div id="browsers"></div></section></div>
+<section><h2>Love messages & animation settings</h2><p class="hint">These messages appear publicly on the heart page.</p>
+<label>Messages (one per line)<textarea id="messages"></textarea></label>
+<p><label>Relationship start date <input id="anniversary" type="date"></label></p>
+<p><label>Heart size <input id="heartSize" type="range" min=".5" max="1.6" step=".1"></label> <output id="sizeValue"></output></p>
+<p><label>Particle speed <input id="particleSpeed" type="range" min=".2" max="3" step=".1"></label> <output id="speedValue"></output></p>
+<p><label>Heart color <input id="heartColor" type="color"></label></p>
+<button id="saveSettings">Save settings</button><p id="settingsStatus" role="status"></p></section>
+<section><h2>Visitor activity timeline</h2><div class="scroll">
+<table><thead><tr><th>Time</th><th>Device</th><th>Activity</th><th>Mode</th><th>Browser</th><th>Session</th></tr></thead><tbody id="visits"></tbody></table>
 </div></section>
 </div>
 <p class="muted"><a href="./">← Back to heart</a></p>
@@ -57,37 +65,88 @@ async function showDashboard() {
     err.textContent="This account has not been authorized as an administrator.";
     return;
   }
-  login.hidden=true; dashboard.hidden=false; await load();
+  login.hidden=true; dashboard.hidden=false; await Promise.all([load(),loadSettings()]);
 }
-async function count(query) {
-  const {count,error} = await query;
-  if(error) throw error; return count ?? 0;
+const $=id=>document.getElementById(id);
+let exported=[];
+function limits(){
+ const p=$("period").value,now=new Date();let from=null,to=null;
+ if(p==="custom"){if($("fromDate").value)from=new Date($("fromDate").value+"T00:00:00Z");if($("toDate").value){to=new Date($("toDate").value+"T00:00:00Z");to.setUTCDate(to.getUTCDate()+1)}}
+ else if(p!=="all"){from=new Date(now);from.setUTCHours(0,0,0,0);from.setUTCDate(from.getUTCDate()-Number(p)+1)}
+ if(from&&to&&from>=to)throw Error("Invalid date range");
+ return {from:from?.toISOString(),to:to?.toISOString()};
 }
-async function load() {
-  status.textContent="Loading statistics…";
-  try {
-    const start=new Date(); start.setUTCHours(0,0,0,0);
-    const [total,today,homes,rows] = await Promise.all([
-      count(client.from("heart_visits").select("*",{count:"exact",head:true})),
-      count(client.from("heart_visits").select("*",{count:"exact",head:true}).gte("visited_at",start.toISOString())),
-      count(client.from("heart_visits").select("*",{count:"exact",head:true}).eq("event_type","home_screen_launch")),
-      client.from("heart_visits").select("visited_at,device_type,event_type,display_mode").order("visited_at",{ascending:false}).limit(50)
-    ]);
-    if(rows.error) throw rows.error;
-    document.getElementById("total").textContent=total.toLocaleString();
-    document.getElementById("today").textContent=today.toLocaleString();
-    document.getElementById("homes").textContent=homes.toLocaleString();
-    const tbody=document.getElementById("visits"); tbody.replaceChildren();
-    for(const item of rows.data || []) {
-      const tr=document.createElement("tr");
-      for(const value of [new Date(item.visited_at).toLocaleString(),item.device_type,item.event_type==="home_screen_launch"?"Home Screen launch":"Website visit",item.display_mode]){
-        const td=document.createElement("td");td.textContent=value;tr.appendChild(td);
-      }
-      tbody.appendChild(tr);
-    }
-    status.textContent="Showing the latest 50 events. Counts are total recorded events, not unique people.";
-  } catch(e) {status.textContent="Unable to load data: "+e.message;}
+function filter(q,b){if(b.from)q=q.gte("visited_at",b.from);if(b.to)q=q.lt("visited_at",b.to);return q}
+async function fetchRows(b){
+ const result=[];
+ for(let n=0;n<10000;n+=1000){
+  const {data,error}=await filter(client.from("heart_visits").select("visited_at,device_type,browser_type,event_type,display_mode,session_id").order("visited_at",{ascending:false}).range(n,n+999),b);
+  if(error)throw error;result.push(...data);if(data.length<1000)break;
+ }
+ return result;
 }
+function breakdown(id,rows,field){
+ const root=$(id);root.replaceChildren();const counts={};
+ rows.forEach(r=>{const k=r[field]||"Unknown";counts[k]=(counts[k]||0)+1});
+ for(const [key,n] of Object.entries(counts).sort((a,b)=>b[1]-a[1])){
+  const el=document.createElement("div");el.textContent=key+": "+n+" ("+Math.round(n/rows.length*100)+"%)";
+  const bar=document.createElement("div");bar.className="bar";bar.style.width=Math.max(2,n/rows.length*90)+"%";root.append(el,bar);
+ }
+ if(!rows.length)root.textContent="No visits yet.";
+}
+function timeline(rows){
+ const root=$("visits");root.replaceChildren();
+ for(const r of rows.slice(0,50)){
+  const tr=document.createElement("tr");
+  for(const v of [new Date(r.visited_at).toLocaleString(),r.device_type,r.event_type,r.display_mode,r.browser_type||"Unknown",r.session_id?.slice(0,8)||"—"]){
+   const td=document.createElement("td");td.textContent=v;tr.append(td);
+  }root.append(tr);
+ }
+}
+function graph(rows){
+ const counts={};rows.forEach(r=>{const d=r.visited_at.slice(0,10);counts[d]=(counts[d]||0)+1});
+ const root=$("chart");root.replaceChildren();
+ for(const [day,n] of Object.entries(counts).sort().slice(-30)){
+  const line=document.createElement("div");line.textContent=day+" — "+n;
+  const bar=document.createElement("div");bar.className="bar";bar.style.width=Math.max(2,n/Math.max(...Object.values(counts))*85)+"%";root.append(line,bar);
+ }
+ if(!rows.length)root.textContent="No visits yet.";
+}
+async function load(){
+ $("status").textContent="Loading…";
+ try{
+  const b=limits();
+  const [rows,summary]=await Promise.all([fetchRows(b),filter(client.from("heart_visits").select("*",{head:true,count:"exact"}),b)]);
+  if(summary.error)throw summary.error;exported=rows;
+  $("total").textContent=summary.count??0;
+  $("today").textContent=rows.filter(r=>r.visited_at.slice(0,10)===new Date().toISOString().slice(0,10)).length;
+  $("homes").textContent=rows.filter(r=>r.event_type==="home_screen_launch").length;
+  $("sessions").textContent=new Set(rows.map(r=>r.session_id).filter(Boolean)).size;
+  breakdown("devices",rows,"device_type");breakdown("browsers",rows,"browser_type");graph(rows);timeline(rows);
+  $("status").textContent="Showing latest 50 timeline entries. Charts, sessions and CSV cover up to 10,000 matching events; total count covers all. Session counts do not identify people.";
+ }catch(e){$("status").textContent="Unable to load data: "+e.message}
+}
+async function loadSettings(){
+ const {data,error}=await client.from("heart_site_settings").select("*").eq("id",1).single();
+ if(error){$("settingsStatus").textContent=error.message;return}
+ $("messages").value=(data.messages||[]).join("\n");$("anniversary").value=data.anniversary_date||"";
+ $("heartSize").value=data.heart_size;$("particleSpeed").value=data.particle_speed;$("heartColor").value=data.heart_color;
+ $("sizeValue").textContent=data.heart_size;$("speedValue").textContent=data.particle_speed;
+}
+$("heartSize").oninput=()=>$("sizeValue").textContent=$("heartSize").value;
+$("particleSpeed").oninput=()=>$("speedValue").textContent=$("particleSpeed").value;
+$("saveSettings").onclick=async()=>{
+ const values={messages:$("messages").value.split("\n").map(x=>x.trim()).filter(Boolean).slice(0,20),anniversary_date:$("anniversary").value||null,heart_size:Number($("heartSize").value),particle_speed:Number($("particleSpeed").value),heart_color:$("heartColor").value,updated_at:new Date().toISOString()};
+ const {data,error}=await client.from("heart_site_settings").update(values).eq("id",1).select("id");
+ $("settingsStatus").textContent=error?error.message:data?.length?"Saved! Refresh the heart page.":"No changes saved.";
+};
+$("period").onchange=load;$("refresh").onclick=load;
+$("csv").onclick=()=>{
+ const keys=["visited_at","device_type","browser_type","event_type","display_mode","session_id"];
+ const quote=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
+ const csv=[keys.join(","),...exported.map(r=>keys.map(k=>quote(r[k])).join(","))].join("\r\n");
+ const url=URL.createObjectURL(new Blob([csv],{type:"text/csv"}));const a=document.createElement("a");a.href=url;a.download="heart-visits.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+};
 document.getElementById("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();err.textContent="";
   const {error}=await client.auth.signInWithPassword({
@@ -97,7 +156,7 @@ document.getElementById("loginForm").addEventListener("submit",async e=>{
   if(error) {err.textContent=error.message;return;}
   await showDashboard();
 });
-document.getElementById("refresh").onclick=load;
+
 document.getElementById("signout").onclick=async()=>{await client.auth.signOut();login.hidden=false;dashboard.hidden=true;};
 showDashboard().catch(e=>err.textContent=e.message);
 </script></body></html>
