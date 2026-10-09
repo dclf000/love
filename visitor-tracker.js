@@ -14,9 +14,12 @@
       sessionStorage.setItem("heart_session_id", sessionId);
     }
   } catch (_) { sessionId = crypto.randomUUID(); }
+  const ua=navigator.userAgent;
+  const browser=/Edg\//.test(ua)?"Edge":/OPR\//.test(ua)?"Opera":/FxiOS|Firefox\//.test(ua)?"Firefox":/CriOS|Chrome\//.test(ua)?"Chrome":/Safari\//.test(ua)?"Safari":"Other";
   const record = {
     event_type: standalone ? "home_screen_launch" : "page_view",
     device_type: device,
+    browser_type: browser,
     display_mode: standalone ? "standalone" : "browser",
     session_id: sessionId
   };
