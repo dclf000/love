@@ -44,17 +44,17 @@ canvas { display: block; }
 }
 .heart-menu{position:fixed;top:15px;right:15px;z-index:4;display:flex;gap:8px;flex-wrap:wrap;justify-content:end}.heart-menu a,.heart-menu button{background:#281638bb;border:1px solid #b77bea;border-radius:24px;color:#f0d9ff;padding:9px 13px;text-decoration:none;font:13px system-ui;cursor:pointer}.heart-menu button[hidden]{display:none}
 </style>
-<link rel="stylesheet" href="royal-purple.css?v=1">
-<meta name="site-build" content="royal-heart-shooting-trails-20261009-6">
+<link rel="stylesheet" href="royal-purple.css?v=7">
+<meta name="site-build" content="royal-heart-player-bursts-20261009-7">
 </head>
 
 <body>
-<canvas id="canvas"></canvas><nav class="heart-menu"><a href="memories.html">📷 Memories</a><a href="stars.html">✨ Stars</a><button id="musicToggle" hidden>▶ Music</button></nav><audio id="loveMusic" loop preload="none"></audio>
+<canvas id="canvas"></canvas><nav class="heart-menu"><a href="memories.html">📷 Memories</a><a href="stars.html">✨ Stars</a><button id="musicToggle" hidden aria-expanded="false" aria-controls="miniPlayer">▶ Music</button></nav><audio id="loveMusic" loop preload="none"></audio><section id="miniPlayer" class="mini-player" hidden aria-label="Music player"><div class="mini-title"><span>♫ Our Song</span><button id="miniClose" aria-label="Close music player">×</button></div><div class="mini-controls"><button id="miniPlay" aria-label="Play or pause music">▶</button><span id="musicElapsed">0:00</span><input id="musicProgress" type="range" min="0" max="1000" value="0" aria-label="Song position"><span id="musicDuration">0:00</span></div><div class="mini-volume"><label for="miniVolume">Volume</label><input id="miniVolume" type="range" min="0" max="1" step=".05" value=".35"></div><p id="miniStatus" role="status"></p></section>
 <div class="center-text" id="centerText">LF ❤ LM</div>
 <div class="love-overlay"><div id="loveMessage"></div><div id="loveCounter"></div></div>
 <script>
 /* Check deployed build on return to the installed phone app. */
-(()=>{const build="royal-heart-shooting-trails-20261009-6";let checking=false;
+(()=>{const build="royal-heart-player-bursts-20261009-7";let checking=false;
 async function checkUpdate(){if(checking||document.hidden)return;checking=true;
 try{const response=await fetch("./index.html?update="+Date.now(),{cache:"no-store"});
 if(response.ok){const html=await response.text();const match=html.match(/<meta name="site-build" content="([^"]+)"/);
@@ -65,7 +65,7 @@ setInterval(checkUpdate,120000);
 })();
 </script>
 <script defer src="heart-extras.js"></script>
-<script defer src="heart-music.js?v=mp3-playback-2"></script>
+<script defer src="heart-music.js?v=mini-player-7"></script>
 
 <script>
 window.onload = () => {
@@ -105,7 +105,8 @@ let heartParticles = [];
 let heartScale, heartCenterX, heartCenterY;
 let cosmicStars=[];
 const lowPower=matchMedia('(pointer:coarse)').matches || innerWidth<700;
-const targetFrame=1000/(lowPower?20:24);
+const reducedMotion=matchMedia("(prefers-reduced-motion: reduce)").matches;
+const targetFrame=1000/(reducedMotion?12:lowPower?20:24);
 let previousFrame=0;
 
 /* ===================== RESIZE ===================== */
@@ -133,7 +134,7 @@ function resize() {
 
   cosmicStars=Array.from({length:Math.min(lowPower?25:45,Math.floor(canvas.width*canvas.height/12000))},()=>({x:Math.random()*canvas.width,y:Math.random()*canvas.height,r:.3+Math.random()*1.4,phase:Math.random()*6.28}));
   heartParticles = [];
-  const count=lowPower?1400:2100;
+  const count=reducedMotion?550:lowPower?950:1700;
   for(let i=0;i<count;i++){
     const outline=i<count*.18;
     heartParticles.push({
@@ -215,7 +216,7 @@ function drawHeart() {
   ctx.beginPath();
   for(const p of heartParticles){
     // Interior particles circulate visibly; the outline stays crisp and heart-shaped.
-    const angle=p.t+time*(p.outline?.22:p.speed);
+    const angle=p.t+(reducedMotion?0:time*(p.outline?.22:p.speed));
     const radius=p.outline?p.r:Math.max(.02,Math.min(.97,p.r+.025*Math.sin(time*1.3+p.phase)));
     const x=16*Math.pow(Math.sin(angle),3)*radius*heartScale*pulse;
     const y=-(13*Math.cos(angle)-5*Math.cos(2*angle)-2*Math.cos(3*angle)-Math.cos(4*angle))*radius*heartScale*pulse;
@@ -224,7 +225,7 @@ function drawHeart() {
   }
   ctx.fill();
   // Bright moving ribbons trace the outline; small number of strokes keeps rendering light.
-  const ribbonCount=lowPower?3:4;
+  const ribbonCount=reducedMotion?1:lowPower?2:4;
   ctx.globalAlpha=1;
   ctx.lineCap='round';
   for(let i=0;i<ribbonCount;i++){
@@ -309,6 +310,29 @@ document.addEventListener('visibilitychange', () => {
 
 window.addEventListener('pageshow', ensureAudio);
 
+/* ===================== TAP HEART SPARKLES ===================== */
+const sparkles=[];
+canvas.addEventListener('pointerdown',event=>{
+ const rect=canvas.getBoundingClientRect();
+ const x=event.clientX-rect.left,y=event.clientY-rect.top;
+ const dx=(x-heartCenterX)/(16*heartScale),dy=(heartCenterY-y)/(17*heartScale);
+ if(dx*dx+dy*dy>1.7)return;
+ const amount=reducedMotion?5:lowPower?13:22;
+ for(let i=0;i<amount;i++){
+  const a=Math.random()*Math.PI*2,v=30+Math.random()*75;
+  sparkles.push({x,y,vx:Math.cos(a)*v,vy:Math.sin(a)*v,born:performance.now(),life:450+Math.random()*450,size:1+Math.random()*2});
+ }
+});
+function drawSparkles(now){
+ ctx.save();ctx.globalCompositeOperation='screen';ctx.fillStyle='#f3c9ff';
+ for(let i=sparkles.length-1;i>=0;i--){
+  const p=sparkles[i],age=now-p.born;
+  if(age>=p.life){sparkles.splice(i,1);continue}
+  const t=age/1000;ctx.globalAlpha=1-age/p.life;
+  ctx.beginPath();ctx.arc(p.x+p.vx*t,p.y+p.vy*t+25*t*t,p.size,0,Math.PI*2);ctx.fill();
+ }
+ ctx.restore();
+}
 /* ===================== LOOP ===================== */
 function animate(time) {
   requestAnimationFrame(animate);
@@ -316,9 +340,10 @@ function animate(time) {
   previousFrame = time;
   drawMatrix();
   drawStars(time);
-  drawShootingStar(time);
+  if(!reducedMotion)drawShootingStar(time);
   pulsePhase = (time - lastBeat) / beatInterval;
   drawHeart();
+  drawSparkles(time);
   drawECG();
   if (time - lastBeat > beatInterval) {
     playHeartbeat();
