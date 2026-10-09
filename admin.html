@@ -16,7 +16,7 @@ table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:12px;bor
 #dashboard[hidden],#login[hidden]{display:none}#login{max-width:500px;margin:35px auto}#login input{display:block;width:100%;margin:12px 0}
 a{color:#dfb4ff}.bar{background:linear-gradient(90deg,#854bc9,#e2b5ff);margin:6px 0 14px;padding:5px;border-radius:7px;min-width:2px;box-shadow:0 0 15px #a365db3a}.hint{font-size:13px}
 #photoList p{display:flex;align-items:center;gap:12px;border-bottom:1px solid #75568a55;padding:9px}#photoList img{border-radius:10px;object-fit:cover;height:70px}
-#status,#settingsStatus,#photoStatus,#musicStatus{overflow-wrap:anywhere}
+#status,#settingsStatus,#photoStatus,#musicStatus{overflow-wrap:anywhere}.pager{display:flex;justify-content:center;align-items:center;flex-wrap:wrap;gap:8px;margin-top:15px}.pager span{font-size:13px;color:#e5caff;min-width:120px;text-align:center}.pager button{padding:8px 12px}
 @media(max-width:600px){main{padding:22px 12px}section{padding:17px}h2{font-size:21px}}
 @media(prefers-reduced-motion:reduce){button{transition:none}}
 </style></head><body><main>
@@ -48,10 +48,10 @@ a{color:#dfb4ff}.bar{background:linear-gradient(90deg,#854bc9,#e2b5ff);margin:6p
 <button id="saveSettings">Save settings</button><p id="settingsStatus" role="status"></p></section>
 <section><h2>📷 Photo management</h2><p>Uploaded photos are publicly visible in Our Memories. Maximum 10 MB per image.</p><input id="photoFile" type="file" accept="image/jpeg,image/png,image/webp,image/gif"><input id="photoCaption" placeholder="Memory caption"><input id="photoDate" type="date"><button id="uploadPhoto">Upload photo</button><p id="photoStatus"></p><div id="photoList"></div></section>
 <section><h2>🎵 Music settings</h2><p class="hint">Upload an MP3 (maximum 20 MB). Only signed-in administrators can upload; the chosen song plays publicly on the heart page.</p><input id="mp3File" type="file" accept=".mp3,audio/mpeg,audio/mp3"><button id="uploadMp3" type="button">Upload MP3 &amp; set as music</button><p id="mp3Status" role="status"></p><p class="hint">Use a publicly accessible direct MP3 URL (HTTPS), not a YouTube link. Visitors can play and pause music using the native audio player.</p><input id="musicUrl" type="url" placeholder="https://example.com/our-song.mp3" style="width:min(100%,500px)"><label>Volume <input id="musicVolume" type="range" min="0" max="1" step=".05" value=".35"></label><button id="saveMusic">Save music</button><p id="musicStatus"></p></section>
-<section><h2>🛡️ Admin activity log</h2><div id="auditLog"></div></section>
+<section><h2>🛡️ Admin activity log</h2><div id="auditLog"></div><nav class="pager" aria-label="Activity log pages"><button id="auditPrev" type="button">← Previous</button><span id="auditPage" aria-live="polite"></span><button id="auditNext" type="button">Next →</button></nav></section>
 <section><h2>Visitor activity timeline</h2><div class="scroll">
 <table><thead><tr><th>Time</th><th>Device</th><th>Activity</th><th>Mode</th><th>Browser</th><th>Session</th></tr></thead><tbody id="visits"></tbody></table>
-</div></section>
+</div><nav class="pager" aria-label="Visitor timeline pages"><button id="timelinePrev" type="button">← Previous</button><span id="timelinePage" aria-live="polite"></span><button id="timelineNext" type="button">Next →</button></nav></section>
 </div>
 <p class="muted"><a href="./">← Back to heart</a></p>
 </main>
@@ -76,6 +76,9 @@ async function showDashboard() {
 }
 const $=id=>document.getElementById(id);
 let exported=[];
+const pageSize=25;
+let auditPage=0,timelinePage=0;
+let timelineTotal=0,auditTotal=0;
 function limits(){
  const p=$("period").value,now=new Date();let from=null,to=null;
  if(p==="custom"){if($("fromDate").value)from=new Date($("fromDate").value+"T00:00:00Z");if($("toDate").value){to=new Date($("toDate").value+"T00:00:00Z");to.setUTCDate(to.getUTCDate()+1)}}
@@ -103,7 +106,7 @@ function breakdown(id,rows,field){
 }
 function timeline(rows){
  const root=$("visits");root.replaceChildren();
- for(const r of rows.slice(0,50)){
+ for(const r of rows){
   const tr=document.createElement("tr");
   for(const v of [new Date(r.visited_at).toLocaleString(),r.device_type,r.event_type,r.display_mode,r.browser_type||"Unknown",r.session_id?.slice(0,8)||"—"]){
    const td=document.createElement("td");td.textContent=v;tr.append(td);
@@ -119,6 +122,23 @@ function graph(rows){
  }
  if(!rows.length)root.textContent="No visits yet.";
 }
+async function loadTimeline(){
+ const root=$("visits");root.replaceChildren();
+ try{
+  const b=limits();
+  const {data,count,error}=await filter(client.from("heart_visits").select("visited_at,device_type,browser_type,event_type,display_mode,session_id",{count:"exact"}).order("visited_at",{ascending:false}).range(timelinePage*pageSize,(timelinePage+1)*pageSize-1),b);
+  if(error)throw error;
+  timelineTotal=count||0;
+  if(timelinePage>0&&timelinePage*pageSize>=timelineTotal){timelinePage=Math.max(0,Math.ceil(timelineTotal/pageSize)-1);return loadTimeline()}
+  timeline(data||[]);
+  if(!data?.length)root.innerHTML="<tr><td colspan=\"6\">No visitor activity for this period.</td></tr>";
+  $("timelinePage").textContent="Page "+(timelinePage+1)+" of "+Math.max(1,Math.ceil(timelineTotal/pageSize))+" · "+timelineTotal+" events";
+  $("timelinePrev").disabled=timelinePage===0;
+  $("timelineNext").disabled=(timelinePage+1)*pageSize>=timelineTotal;
+ }catch(e){$("timelinePage").textContent="Unable to load timeline";root.textContent=e.message}
+}
+$("timelinePrev").onclick=()=>{if(timelinePage>0){timelinePage--;loadTimeline()}};
+$("timelineNext").onclick=()=>{if((timelinePage+1)*pageSize<timelineTotal){timelinePage++;loadTimeline()}};
 async function load(){
  $("status").textContent="Loading…";
  try{
@@ -129,8 +149,8 @@ async function load(){
   $("today").textContent=rows.filter(r=>r.visited_at.slice(0,10)===new Date().toISOString().slice(0,10)).length;
   $("homes").textContent=rows.filter(r=>r.event_type==="home_screen_launch").length;
   $("sessions").textContent=new Set(rows.map(r=>r.session_id).filter(Boolean)).size;
-  breakdown("devices",rows,"device_type");breakdown("browsers",rows,"browser_type");graph(rows);timeline(rows);
-  $("status").textContent="Showing latest 50 timeline entries. Charts, sessions and CSV cover up to 10,000 matching events; total count covers all. Session counts do not identify people.";
+  breakdown("devices",rows,"device_type");breakdown("browsers",rows,"browser_type");graph(rows);await loadTimeline();
+  $("status").textContent="Timeline is paginated across all matching events. Charts, sessions and CSV cover up to 10,000 matching events; total count covers all. Session counts do not identify people.";
  }catch(e){$("status").textContent="Unable to load data: "+e.message}
 }
 async function loadSettings(){
@@ -148,7 +168,7 @@ $("saveSettings").onclick=async()=>{
  const {data,error}=await client.from("heart_site_settings").update(values).eq("id",1).select("id");
  $("settingsStatus").textContent=error?error.message:data?.length?"Saved! Refresh the heart page.":"No changes saved.";
 };
-$("period").onchange=load;$("refresh").onclick=load;
+$("period").onchange=()=>{timelinePage=0;load()};$("refresh").onclick=()=>{timelinePage=0;load()};$("fromDate").onchange=()=>{timelinePage=0;load()};$("toDate").onchange=()=>{timelinePage=0;load()};
 $("csv").onclick=()=>{
  const keys=["visited_at","device_type","browser_type","event_type","display_mode","session_id"];
  const quote=v=>'"'+String(v??"").replace(/"/g,'""')+'"';
@@ -202,11 +222,19 @@ $("saveMusic").onclick=async()=>{
  if(!error)loadAudit();
 };
 async function loadAudit(){
- const {data,error}=await client.from("heart_admin_audit").select("happened_at,action,details").order("happened_at",{ascending:false}).limit(30);
- const root=$("auditLog");root.replaceChildren();if(error){root.textContent="Run supabase-memories-upgrade.sql first: "+error.message;return}
- for(const x of data){const p=document.createElement("p");p.textContent=new Date(x.happened_at).toLocaleString()+" — "+x.action+" — "+x.details;root.append(p)}
- if(!data.length)root.textContent="No admin changes recorded yet.";
+ const root=$("auditLog");root.replaceChildren();
+ const {data,count,error}=await client.from("heart_admin_audit").select("happened_at,action,details",{count:"exact"}).order("happened_at",{ascending:false}).range(auditPage*pageSize,(auditPage+1)*pageSize-1);
+ if(error){root.textContent="Unable to load activity log: "+error.message;return}
+ auditTotal=count||0;
+ if(auditPage>0&&auditPage*pageSize>=auditTotal){auditPage=Math.max(0,Math.ceil(auditTotal/pageSize)-1);return loadAudit()}
+ for(const x of data||[]){const p=document.createElement("p");p.textContent=new Date(x.happened_at).toLocaleString()+" — "+x.action+" — "+x.details;root.append(p)}
+ if(!data?.length)root.textContent="No admin changes recorded yet.";
+ $("auditPage").textContent="Page "+(auditPage+1)+" of "+Math.max(1,Math.ceil(auditTotal/pageSize))+" · "+auditTotal+" entries";
+ $("auditPrev").disabled=auditPage===0;
+ $("auditNext").disabled=(auditPage+1)*pageSize>=auditTotal;
 }
+$("auditPrev").onclick=()=>{if(auditPage>0){auditPage--;loadAudit()}};
+$("auditNext").onclick=()=>{if((auditPage+1)*pageSize<auditTotal){auditPage++;loadAudit()}};
 setInterval(()=>{if(!dashboard.hidden)load()},30000);
 document.getElementById("loginForm").addEventListener("submit",async e=>{
   e.preventDefault();err.textContent="";
