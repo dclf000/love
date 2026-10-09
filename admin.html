@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Heart | Private Admin</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#08080c;color:#f5edff;font:15px system-ui,Arial}
+main{max-width:940px;margin:0 auto;padding:32px 18px}
+h1{font-size:clamp(24px,4vw,34px)}p,.muted{color:#b9a9c8}
+section{background:#171320;border:1px solid #33263f;border-radius:16px;padding:22px;margin:20px 0}
+input,button{font:inherit;padding:12px;border-radius:9px}
+input{background:#090710;color:white;border:1px solid #68527d;max-width:100%;width:280px;margin:5px}
+button{background:#a879e8;border:0;color:#140a20;cursor:pointer;font-weight:700;margin:5px}
+button:disabled{opacity:.5} .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
+.stat{background:#251c30;padding:18px;border-radius:12px}.stat strong{display:block;font-size:30px;margin-top:8px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #352b40}
+.scroll{overflow-x:auto}#dashboard[hidden],#login[hidden]{display:none}
+a{color:#d6b5ff}
+</style></head><body><main>
+<h1>❤️ Heart Admin Dashboard</h1>
+<p>Private visitor statistics for LF ❤️ LM. Home Screen launches are detected only when supported; installs cannot be reliably counted.</p>
+<section id="login">
+<h2>Administrator sign in</h2>
+<form id="loginForm">
+<input id="email" type="email" placeholder="Admin email" autocomplete="username" required>
+<input id="password" type="password" placeholder="Password" autocomplete="current-password" required>
+<button type="submit">Sign in</button>
+</form><p id="loginError" role="alert"></p>
+</section>
+<div id="dashboard" hidden>
+<button id="refresh">Refresh</button><button id="signout">Sign out</button>
+<p id="status" role="status"></p>
+<div class="stats">
+<div class="stat">Total visits<strong id="total">—</strong></div>
+<div class="stat">Visits today (UTC)<strong id="today">—</strong></div>
+<div class="stat">Home Screen launches<strong id="homes">—</strong></div>
+</div>
+<section><h2>Recent activity</h2><div class="scroll">
+<table><thead><tr><th>Time</th><th>Device</th><th>Activity</th><th>Mode</th></tr></thead><tbody id="visits"></tbody></table>
+</div></section>
+</div>
+<p class="muted"><a href="./">← Back to heart</a></p>
+</main>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+const client = window.supabase.createClient("https://sflilptubekduvxqpiiw.supabase.co","sb_publishable_PoY_xXp55Iz0ho4gg0cIhw_JUdGt7Yh");
+const login = document.getElementById("login");
+const dashboard = document.getElementById("dashboard");
+const err = document.getElementById("loginError");
+const status = document.getElementById("status");
+async function showDashboard() {
+  const {data:{user}} = await client.auth.getUser();
+  if (!user) { login.hidden=false; dashboard.hidden=true; return; }
+  const {data,error} = await client.from("heart_admins").select("user_id").eq("user_id",user.id).maybeSingle();
+  if (error || !data) {
+    await client.auth.signOut();
+    login.hidden=false; dashboard.hidden=true;
+    err.textContent="This account has not been authorized as an administrator.";
+    return;
+  }
+  login.hidden=true; dashboard.hidden=false; await load();
+}
+async function count(query) {
+  const {count,error} = await query.select("*",{count:"exact",head:true});
+  if(error) throw error; return count ?? 0;
+}
+async function load() {
+  status.textContent="Loading statistics…";
+  try {
+    const start=new Date(); start.setUTCHours(0,0,0,0);
+    const [total,today,homes,rows] = await Promise.all([
+      count(client.from("heart_visits")),
+      count(client.from("heart_visits").gte("visited_at",start.toISOString())),
+      count(client.from("heart_visits").eq("event_type","home_screen_launch")),
+      client.from("heart_visits").select("visited_at,device_type,event_type,display_mode").order("visited_at",{ascending:false}).limit(50)
+    ]);
+    if(rows.error) throw rows.error;
+    document.getElementById("total").textContent=total.toLocaleString();
+    document.getElementById("today").textContent=today.toLocaleString();
+    document.getElementById("homes").textContent=homes.toLocaleString();
+    const tbody=document.getElementById("visits"); tbody.replaceChildren();
+    for(const item of rows.data || []) {
+      const tr=document.createElement("tr");
+      for(const value of [new Date(item.visited_at).toLocaleString(),item.device_type,item.event_type==="home_screen_launch"?"Home Screen launch":"Website visit",item.display_mode]){
+        const td=document.createElement("td");td.textContent=value;tr.appendChild(td);
+      }
+      tbody.appendChild(tr);
+    }
+    status.textContent="Showing the latest 50 events. Counts are total recorded events, not unique people.";
+  } catch(e) {status.textContent="Unable to load data: "+e.message;}
+}
+document.getElementById("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();err.textContent="";
+  const {error}=await client.auth.signInWithPassword({
+    email:document.getElementById("email").value,
+    password:document.getElementById("password").value
+  });
+  if(error) {err.textContent=error.message;return;}
+  await showDashboard();
+});
+document.getElementById("refresh").onclick=load;
+document.getElementById("signout").onclick=async()=>{await client.auth.signOut();login.hidden=false;dashboard.hidden=true;};
+showDashboard().catch(e=>err.textContent=e.message);
+</script></body></html>
