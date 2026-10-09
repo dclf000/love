@@ -1,10 +1,21 @@
 <!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Our Memories ❤️</title><style>
-body{background:#090510;color:#f2dfff;font:16px system-ui;margin:0;text-align:center}header{padding:30px 16px}a{color:#d9aaff}#gallery{max-width:1050px;margin:auto;padding:20px;display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:20px}.memory{background:#21152f;padding:12px;border-radius:16px;box-shadow:0 0 25px #4b236a55}.memory img{width:100%;height:260px;object-fit:cover;border-radius:10px}.memory p{white-space:pre-wrap}small{color:#c6add5}</style></head><body>
-<header><h1>📷 Our Memories</h1><p>Little moments, forever treasured.</p><a href="./">❤️ Back to our heart</a> · <a href="stars.html">✨ Our Starry Sky</a></header><main id="gallery">Loading memories…</main>
+*{box-sizing:border-box}body{background:radial-gradient(ellipse at 50% 0%,#2d1748,#0a0612 62%);color:#f3e4ff;font:16px system-ui;margin:0;text-align:center;min-height:100vh}
+header{padding:58px 16px 30px}h1{font:normal clamp(35px,6vw,64px) Georgia,serif;letter-spacing:.04em;margin:10px}header p{color:#c7acd9}a{color:#e2baff;text-decoration:none}a:hover{text-decoration:underline}
+#gallery{max-width:1200px;margin:auto;padding:24px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:30px}
+.memory{background:#f5eaf9;color:#382147;padding:12px 12px 22px;border-radius:6px;box-shadow:0 16px 60px #0008;transform:rotate(var(--tilt,0deg));transition:transform .3s,box-shadow .3s;cursor:pointer}
+.memory:nth-child(3n+1){--tilt:-2deg}.memory:nth-child(3n+2){--tilt:1.8deg}.memory:nth-child(3n){--tilt:-.6deg}
+.memory:hover{transform:rotate(0) translateY(-9px) scale(1.02);box-shadow:0 20px 70px #8b43b866}
+.memory img{width:100%;height:280px;object-fit:cover;border-radius:2px}.memory p{white-space:pre-wrap;font:19px Georgia,serif}.memory small{color:#725b7d}
+#lightbox{border:1px solid #ad79d8;border-radius:18px;padding:16px;background:#160d24;color:#f2e3ff;max-width:min(95vw,900px);box-shadow:0 0 80px #000}
+#lightbox::backdrop{background:#030109ed;backdrop-filter:blur(10px)}#lightbox img{display:block;max-width:100%;max-height:70vh;margin:auto;border-radius:10px}#lightbox p{font:20px Georgia,serif}#closeLightbox{float:right;background:#492765;color:white;border:0;padding:8px 14px;border-radius:9px;cursor:pointer}
+@media(prefers-reduced-motion:reduce){.memory{transition:none;transform:none}}
+</style></head><body>
+<header><h1>📷 Our Memories</h1><p>Little moments, forever treasured.</p><a href="./">❤️ Back to our heart</a> · <a href="stars.html">✨ Our Starry Sky</a></header><main id="gallery">Loading memories…</main><dialog id="lightbox"><button id="closeLightbox" aria-label="Close photo">✕ Close</button><img id="largePhoto" alt=""><p id="largeCaption"></p><small id="largeDate"></small></dialog>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script><script>
 const client=supabase.createClient("https://sflilptubekduvxqpiiw.supabase.co","sb_publishable_PoY_xXp55Iz0ho4gg0cIhw_JUdGt7Yh");
 (async()=>{const root=document.getElementById("gallery");const {data,error}=await client.from("heart_photos").select("storage_path,caption,memory_date").order("created_at",{ascending:false}).limit(100);
 root.replaceChildren();if(error){root.textContent="Gallery setup is pending.";return}if(!data.length){root.textContent="Our first memory is waiting to be added ❤️";return}
 for(const m of data){const card=document.createElement("article");card.className="memory";const img=document.createElement("img");img.loading="lazy";img.alt=m.caption||"Our memory";img.src=client.storage.from("heart-memories").getPublicUrl(m.storage_path).data.publicUrl;
-const p=document.createElement("p");p.textContent=m.caption;const date=document.createElement("small");date.textContent=m.memory_date||"";card.append(img,p,date);root.append(card)}})();
+const p=document.createElement("p");p.textContent=m.caption;const date=document.createElement("small");date.textContent=m.memory_date||"";card.append(img,p,date);card.tabIndex=0;card.setAttribute("role","button");card.setAttribute("aria-label","View "+(m.caption||"memory"));const open=()=>{document.getElementById("largePhoto").src=img.src;document.getElementById("largePhoto").alt=img.alt;document.getElementById("largeCaption").textContent=m.caption;document.getElementById("largeDate").textContent=m.memory_date||"";document.getElementById("lightbox").showModal()};card.onclick=open;card.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();open()}};root.append(card)}})();
+document.getElementById("closeLightbox").onclick=()=>document.getElementById("lightbox").close();
 </script></body></html>
